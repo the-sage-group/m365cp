@@ -11,7 +11,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx watch src/index.ts"
   },
   "keywords": [
     "mcp",
@@ -24,6 +24,7 @@
   "dependencies": {
     "@azure/identity": "^4.5.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@microsoft/microsoft-graph-types": "^2.43.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "express": "^5.1.0",
     "isomorphic-fetch": "^3.0.0",
@@ -32,6 +33,7 @@
   "devDependencies": {
     "@types/express": "^5.0.5",
     "@types/isomorphic-fetch": "^0.0.39",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.10.1",
     "tsx": "^4.20.6",
     "typescript": "^5.7.2"

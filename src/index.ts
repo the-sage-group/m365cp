@@ -3,7 +3,9 @@
 import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { z } from "zod";
+import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
+import { registerAllTools } from "./tools/index.js";
+import { MicrosoftGraphTokenVerifier } from "./auth/verifier.js";
 
 // Create MCP server (reused across requests)
 const server = new McpServer({
@@ -11,74 +13,43 @@ const server = new McpServer({
   version: "1.0.0",
 });
 
-// Register hello_world tool
-server.registerTool(
-  "hello_world",
-  {
-    title: "Hello World",
-    description: "A silly test tool that says hello",
-    inputSchema: {
-      name: z.string().describe("Your name"),
-      emoji: z.string().optional().describe("Optional emoji to include"),
-    },
-    outputSchema: {
-      greeting: z.string(),
-    },
-  },
-  async ({ name, emoji }) => {
-    const greeting = emoji
-      ? `Hello, ${name}! ${emoji}${emoji}${emoji}`
-      : `Hello, ${name}! Welcome to the Microsoft 365 Graph MCP Server!`;
-
-    const output = { greeting };
-    return {
-      content: [
-        {
-          type: "text",
-          text: greeting,
-        },
-      ],
-      structuredContent: output,
-    };
-  }
-);
+// Register all Graph API tools
+registerAllTools(server);
 
 // Create Express app
 const app = express();
 app.use(express.json());
 
+// Create token verifier
+const tokenVerifier = new MicrosoftGraphTokenVerifier();
+
 // MCP endpoint (stateless pattern - recommended for most use cases)
-app.post("/mcp", async (req, res) => {
-  console.log("Received POST request to /mcp");
+app.post(
+  "/mcp",
+  requireBearerAuth({ verifier: tokenVerifier }),
+  async (req, res) => {
+    console.log("Received POST request to /mcp");
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
 
-  try {
-    // Create a new transport for each request to prevent request ID collisions
-    // Different clients may use the same JSON-RPC request IDs
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
-
-    res.on("close", () => {
-      transport.close();
-    });
-
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
-  } catch (error) {
-    console.error("Error handling MCP request:", error);
-    if (!res.headersSent) {
-      res.status(500).json({
-        jsonrpc: "2.0",
-        error: {
-          code: -32603,
-          message: "Internal server error",
-        },
-        id: null,
+    try {
+      // Create a new transport for each request to prevent request ID collisions
+      // Different clients may use the same JSON-RPC request IDs
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+        enableJsonResponse: true,
       });
+
+      res.on("close", () => {
+        transport.close();
+      });
+
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    } catch (error) {
+      console.error("Error handling MCP request:", error);
     }
   }
-});
+);
 
 // Health check endpoint
 app.get("/health", async (req, res) => {
