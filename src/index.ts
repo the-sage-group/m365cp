@@ -4,7 +4,7 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
-import { registerAllTools } from "./tools/index.js";
+import { getUserInfo, getFileDownloadUrl, searchFiles } from "./tools/index.js";
 import { MicrosoftGraphTokenVerifier } from "./auth/verifier.js";
 
 // Create MCP server (reused across requests)
@@ -14,7 +14,9 @@ const server = new McpServer({
 });
 
 // Register all Graph API tools
-registerAllTools(server);
+server.registerTool(getUserInfo.name, getUserInfo.schema, getUserInfo.handler);
+server.registerTool(getFileDownloadUrl.name, getFileDownloadUrl.schema, getFileDownloadUrl.handler);
+server.registerTool(searchFiles.name, searchFiles.schema, searchFiles.handler);
 
 // Create Express app
 const app = express();
@@ -28,9 +30,6 @@ app.post(
   "/mcp",
   requireBearerAuth({ verifier: tokenVerifier }),
   async (req, res) => {
-    console.log("Received POST request to /mcp");
-    console.log("Request body:", JSON.stringify(req.body, null, 2));
-
     try {
       // Create a new transport for each request to prevent request ID collisions
       // Different clients may use the same JSON-RPC request IDs
