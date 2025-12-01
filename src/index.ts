@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 
+import "dotenv/config";
 import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
-import { getUserInfo, getFileDownloadUrl, searchFiles } from "./tools/index.js";
 import { MicrosoftGraphTokenVerifier } from "./auth/verifier.js";
+import { ZodRawShape } from "zod";
+import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
+
+import tools from "./tools/index.js";
 
 // Create MCP server (reused across requests)
 const server = new McpServer({
@@ -14,9 +18,13 @@ const server = new McpServer({
 });
 
 // Register all Graph API tools
-server.registerTool(getUserInfo.name, getUserInfo.schema, getUserInfo.handler);
-server.registerTool(getFileDownloadUrl.name, getFileDownloadUrl.schema, getFileDownloadUrl.handler);
-server.registerTool(searchFiles.name, searchFiles.schema, searchFiles.handler);
+for (const tool of tools) {
+  server.registerTool(
+    tool.name,
+    tool.schema,
+    tool.handler as ToolCallback<ZodRawShape>
+  );
+}
 
 // Create Express app
 const app = express();

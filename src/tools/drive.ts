@@ -1,110 +1,64 @@
 import { z } from "zod";
-import { createGraphClient } from "../graph/client.js";
-import type { DriveItem } from "@microsoft/microsoft-graph-types";
+import { toFile } from "@anthropic-ai/sdk";
+import { GraphClient } from "../graph/client.js";
+import { getAnthropicClient } from "../anthropic/client.js";
+import type { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-export const getFileDownloadUrl = {
-  name: "get_file_download_url",
+export const getFile = {
+  name: "get_file",
   schema: {
-    title: "Get File Download URL",
+    title: "Get File",
     description:
-      "Get a file's metadata and temporary download URL from OneDrive by ID.",
+      "Get a file from OneDrive by ID and upload it to Anthropic for analysis.",
     inputSchema: z.object({
-      itemId: z.string().describe("The ID of the file to retrieve"),
+      itemId: z.string().describe("The OneDrive item ID of the file"),
     }),
   },
-  handler: async (
-    args: { itemId: string },
-    extra: { authInfo?: { token?: string } }
-  ) => {
-    const accessToken = extra.authInfo?.token;
-    if (!accessToken) {
-      throw new Error("No access token available");
-    }
+  handler: (async (args, extra) => {
+    const client = new GraphClient(extra.authInfo!.token!);
+    const file = await client.getFileBytes(args.itemId);
 
-    const client = createGraphClient(accessToken);
-
-    // Get metadata including download URL
-    const metadata: DriveItem & { "@microsoft.graph.downloadUrl"?: string } =
-      await client.api(`/me/drive/items/${args.itemId}`).get();
-
-    const downloadUrl = metadata["@microsoft.graph.downloadUrl"];
-    if (!downloadUrl) {
-      throw new Error("No download URL available for this item");
-    }
-
-    console.log(`File ready: ${metadata.name}, size: ${metadata.size} bytes`);
-    console.log(`Download URL: ${downloadUrl}`);
+    const anthropic = getAnthropicClient();
+    const uploaded = await anthropic.beta.files.upload({
+      file: await toFile(file.bytes, file.name, { type: file.mimeType }),
+      betas: ["files-api-2025-04-14"],
+    });
 
     return {
       content: [
         {
-          type: "text" as const,
+          type: "text",
           text: JSON.stringify({
-            id: metadata.id,
-            filename: metadata.name,
-            mimeType: metadata.file?.mimeType || "application/octet-stream",
-            size: metadata.size,
-            downloadUrl: downloadUrl,
-            createdDateTime: metadata.createdDateTime,
-            lastModifiedDateTime: metadata.lastModifiedDateTime,
+            anthropicFileId: uploaded.id,
+            name: file.name,
+            type: file.mimeType,
+            size: file.size,
+            previewUrl: file.previewUrl,
           }),
         },
       ],
     };
-  },
+  }) satisfies ToolCallback<{ itemId: z.ZodString }>,
 };
 
 export const searchFiles = {
   name: "search_files",
   schema: {
     title: "Search Files",
-    description:
-      "Search for files and folders in OneDrive. Searches across filename, metadata, and file content.",
+    description: "Search for files in OneDrive by name, content, or metadata.",
     inputSchema: z.object({
-      query: z
-        .string()
-        .describe(
-          "Search query text to find items by name, content, or metadata"
-        ),
-      top: z
-        .number()
-        .optional()
-        .describe("Maximum number of results to return (default: 20)"),
+      query: z.string().describe("Search query"),
+      top: z.number().optional().describe("Max results (default: 20)"),
     }),
   },
-  handler: async (
-    args: { query: string; top?: number },
-    extra: { authInfo?: { token?: string } }
-  ) => {
-    const accessToken = extra.authInfo?.token;
-    if (!accessToken) {
-      throw new Error("No access token available");
-    }
-
-    console.log("Search query: ", args.query);
-
-    const client = createGraphClient(accessToken);
-    const top = args.top || 20;
-
-    const response = await client
-      .api(`/me/drive/root/search(q='${args.query}')`)
-      .top(top)
-      .get();
-
-    const items: DriveItem[] = response.value || [];
+  handler: (async (args, extra) => {
+    const client = new GraphClient(extra.authInfo!.token!);
+    const items = await client.searchFiles(args.query, args.top);
 
     return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(items, null, 2),
-        },
-      ],
-      structuredContent: {
-        items,
-        count: items.length,
-        hasMore: !!response["@odata.nextLink"],
-      },
+      content: [{ type: "text", text: JSON.stringify(items, null, 2) }],
     };
-  },
+  }) satisfies ToolCallback<{ query: z.ZodString; top: z.ZodOptional<z.ZodNumber> }>,
 };
+
+export default [getFile, searchFiles];
