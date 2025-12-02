@@ -21,6 +21,7 @@ export interface FileContent {
   bytes: Buffer;
   base64: string;
   previewUrl?: string;
+  downloadUrl?: string;
 }
 
 // ============================================================================
@@ -86,7 +87,8 @@ export class GraphClient {
       mimeType: metadata.file?.mimeType || "application/octet-stream",
       size: metadata.size || 0,
       bytes,
-      previewUrl: downloadUrl,
+      previewUrl: metadata.webUrl || undefined,
+      downloadUrl: downloadUrl,
       base64: bytes.toString("base64"),
     };
   }
@@ -101,6 +103,18 @@ export class GraphClient {
 
   async getFileMetadata(itemId: string): Promise<DriveItem> {
     return this.client.api(`/me/drive/items/${itemId}`).get();
+  }
+
+  async uploadFile(
+    fileName: string,
+    content: Buffer,
+    folderPath?: string
+  ): Promise<DriveItem> {
+    const uploadPath = folderPath
+      ? `/me/drive/root:/${folderPath}/${fileName}:/content`
+      : `/me/drive/root:/${fileName}:/content`;
+
+    return this.client.api(uploadPath).put(content);
   }
 
   // ==========================================================================

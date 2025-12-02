@@ -55,7 +55,7 @@ export const getConversation = {
   schema: {
     title: "Get Conversation",
     description:
-      "Get all messages and attachments from a conversation thread. Downloads all attachments and uploads them to Anthropic for analysis. Use search_inbox_messages first to find the conversationId.",
+      "Get all messages and attachments from a conversation thread. Downloads all file attachments and uploads them to OneDrive. Use search_inbox_messages first to find the conversationId.",
     inputSchema: z.object({
       conversationId: z
         .string()
@@ -63,20 +63,68 @@ export const getConversation = {
     }),
   },
   handler: (async (args, extra) => {
-    console.log("Trying to get conversation", args);
     const client = new GraphClient(extra.authInfo!.token!);
 
     // Get all messages in the conversation
     const messages = await client.getConversationMessages(args.conversationId);
 
-    console.log("Got conversation messages", messages.length);
-    for (const message of messages) {
-      // print a nice summary of each message
-      console.log("Message: ", message.from);
-      console.log("Subject: ", message.subject);
-      console.log("Size: ", message.body?.content?.length);
-      console.log("Attachments: ", message.attachments);
-    }
+    // Process messages and upload attachments
+    const processedMessages = await Promise.all(
+      messages.map(async (message) => {
+        const uploadedAttachments = [];
+
+        // Process file attachments
+        for (const attachment of message.attachments ?? []) {
+          // Check if this is a FileAttachment with contentBytes
+          if (
+            (attachment as any)["@odata.type"] ===
+              "#microsoft.graph.fileAttachment" &&
+            "contentBytes" in attachment
+          ) {
+            try {
+              // Decode base64 content
+              const contentBytes = Buffer.from(
+                (attachment as any).contentBytes,
+                "base64"
+              );
+
+              // Upload to OneDrive in folder: attachments/{conversationId-prefix}
+              const conversationPrefix = args.conversationId.substring(0, 8);
+              const uploadedFile = await client.uploadFile(
+                attachment.name || "attachment",
+                contentBytes,
+                `attachments/${conversationPrefix}`
+              );
+              console.log("Uploaded file:", uploadedFile);
+              uploadedAttachments.push({
+                name: attachment.name,
+                size: attachment.size,
+                contentType: attachment.contentType,
+                fileId: uploadedFile.id,
+                webUrl: uploadedFile.webUrl,
+              });
+            } catch (error) {
+              uploadedAttachments.push({
+                name: attachment.name,
+                size: attachment.size,
+                contentType: attachment.contentType,
+                error: "Failed to upload to OneDrive",
+              });
+            }
+          }
+        }
+
+        return {
+          id: message.id,
+          subject: message.subject,
+          from: message.from,
+          receivedDateTime: message.receivedDateTime,
+          bodyPreview: message.bodyPreview,
+          body: message.body,
+          uploadedAttachments,
+        };
+      })
+    );
 
     return {
       content: [
@@ -84,8 +132,8 @@ export const getConversation = {
           type: "text" as const,
           text: JSON.stringify(
             {
-              count: messages.length,
-              results: messages,
+              count: processedMessages.length,
+              results: processedMessages,
             },
             null,
             2
