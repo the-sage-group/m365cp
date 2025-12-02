@@ -1,54 +1,38 @@
 import { z } from "zod";
-import { GraphClient } from "../graph/client.js";
+import { GraphClient } from "../../graph/client.js";
 import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type {
+  Message,
+  DriveItem,
+  Attachment,
+} from "@microsoft/microsoft-graph-types";
 
 // ============================================================================
-// Tools
+// Output Types
 // ============================================================================
 
-export const searchInboxMessages = {
-  name: "search_inbox_messages",
-  schema: {
-    title: "Search Inbox Messages",
-    description:
-      "Search for messages in the inbox. Returns full message details including conversationId.",
-    inputSchema: z.object({
-      query: z
-        .string()
-        .describe(
-          "Search query to filter messages (searches subject, body, sender)"
-        ),
-      top: z
-        .number()
-        .optional()
-        .default(10)
-        .describe("Maximum number of messages to return (default: 10)"),
-    }),
-  },
-  handler: (async (args, extra) => {
-    const client = new GraphClient(extra.authInfo!.token!);
-    const searchHits = await client.searchMessages(args.query);
+export interface UploadedAttachment {
+  attachment: Attachment;
+  driveItem: DriveItem;
+  error?: string;
+}
 
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(
-            {
-              count: searchHits.length,
-              results: searchHits,
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    };
-  }) satisfies ToolCallback<{
-    query: z.ZodString;
-    top: z.ZodOptional<z.ZodNumber>;
-  }>,
-};
+export interface ConversationMessage
+  extends Pick<
+    Message,
+    "id" | "subject" | "from" | "receivedDateTime" | "bodyPreview" | "body"
+  > {
+  uploadedAttachments: UploadedAttachment[];
+}
+
+export interface GetConversationResult {
+  count: number;
+  results: ConversationMessage[];
+}
+
+// ============================================================================
+// Tool Definition
+// ============================================================================
 
 export const getConversation = {
   name: "get_conversation",
@@ -71,7 +55,7 @@ export const getConversation = {
     // Process messages and upload attachments
     const processedMessages = await Promise.all(
       messages.map(async (message) => {
-        const uploadedAttachments = [];
+        const uploadedAttachments: UploadedAttachment[] = [];
 
         // Process file attachments
         for (const attachment of message.attachments ?? []) {
@@ -83,7 +67,7 @@ export const getConversation = {
           ) {
             try {
               // Decode base64 content
-              const contentBytes = Buffer.from(
+              const attachmentBytes = Buffer.from(
                 (attachment as any).contentBytes,
                 "base64"
               );
@@ -92,29 +76,28 @@ export const getConversation = {
               const conversationPrefix = args.conversationId.substring(0, 8);
               const uploadedFile = await client.uploadFile(
                 attachment.name || "attachment",
-                contentBytes,
+                attachmentBytes,
                 `attachments/${conversationPrefix}`
               );
-              console.log("Uploaded file:", uploadedFile);
+
+              // Strip contentBytes from attachment to avoid sending large data in response
+              const { contentBytes, ...attachmentMetadata } = attachment as any;
               uploadedAttachments.push({
-                name: attachment.name,
-                size: attachment.size,
-                contentType: attachment.contentType,
-                fileId: uploadedFile.id,
-                webUrl: uploadedFile.webUrl,
+                attachment: attachmentMetadata,
+                driveItem: uploadedFile,
               });
             } catch (error) {
+              const { contentBytes, ...attachmentMetadata } = attachment as any;
               uploadedAttachments.push({
-                name: attachment.name,
-                size: attachment.size,
-                contentType: attachment.contentType,
+                attachment: attachmentMetadata,
+                driveItem: {} as DriveItem,
                 error: "Failed to upload to OneDrive",
               });
             }
           }
         }
 
-        return {
+        const conversationMessage: ConversationMessage = {
           id: message.id,
           subject: message.subject,
           from: message.from,
@@ -123,25 +106,23 @@ export const getConversation = {
           body: message.body,
           uploadedAttachments,
         };
+
+        return conversationMessage;
       })
     );
+
+    const result: GetConversationResult = {
+      count: processedMessages.length,
+      results: processedMessages,
+    };
 
     return {
       content: [
         {
           type: "text" as const,
-          text: JSON.stringify(
-            {
-              count: processedMessages.length,
-              results: processedMessages,
-            },
-            null,
-            2
-          ),
+          text: JSON.stringify(result, null, 2),
         },
       ],
     };
   }) satisfies ToolCallback<{ conversationId: z.ZodString }>,
 };
-
-export default [searchInboxMessages, getConversation];
