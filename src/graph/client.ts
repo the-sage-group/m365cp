@@ -119,6 +119,32 @@ export class GraphClient {
     return this.client.api(uploadPath).put(content);
   }
 
+  async moveFile(
+    itemId: string,
+    destinationFolderPath: string,
+    newName?: string
+  ): Promise<DriveItem> {
+    // Get the destination folder by path
+    const destinationFolder = await this.client
+      .api(`/me/drive/root:/${destinationFolderPath}`)
+      .get();
+
+    // Build the update payload
+    const updatePayload: any = {
+      parentReference: {
+        id: destinationFolder.id,
+      },
+    };
+
+    // If a new name is provided, include it in the update
+    if (newName) {
+      updatePayload.name = sanitize(newName);
+    }
+
+    // Move the file by updating its parentReference (and optionally name)
+    return this.client.api(`/me/drive/items/${itemId}`).patch(updatePayload);
+  }
+
   // ==========================================================================
   // Mail
   // ==========================================================================
