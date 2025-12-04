@@ -9,7 +9,7 @@ import { MicrosoftGraphTokenVerifier } from "./auth/verifier.js";
 import { ZodRawShape } from "zod";
 import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import tools from "./tools/index.js";
+import * as tools from "./tools/index.js";
 
 // Create MCP server (reused across requests)
 const server = new McpServer({
@@ -18,12 +18,14 @@ const server = new McpServer({
 });
 
 // Register all Graph API tools
-for (const tool of tools) {
-  server.registerTool(
-    tool.name,
-    tool.schema,
-    tool.handler as ToolCallback<ZodRawShape>
-  );
+for (const tool of Object.values(tools)) {
+  if (typeof tool === "object" && "name" in tool) {
+    server.registerTool(
+      tool.name,
+      tool.schema,
+      tool.handler as ToolCallback<ZodRawShape>
+    );
+  }
 }
 
 // Create Express app

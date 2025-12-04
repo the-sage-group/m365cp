@@ -4,6 +4,15 @@
   "description": "MCP server for Microsoft 365 Graph API",
   "type": "module",
   "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./tools": "./dist/tools/index.js"
+  },
+  "typesVersions": {
+    "*": {
+      "tools": ["dist/tools/index.d.ts"]
+    }
+  },
   "bin": {
     "mcp-microsoft365-graph": "dist/index.js"
   },
