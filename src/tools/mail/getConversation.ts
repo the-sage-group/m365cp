@@ -6,6 +6,8 @@ import type {
   DriveItem,
   Attachment,
 } from "@microsoft/microsoft-graph-types";
+import puppeteer from "puppeteer";
+import sanitize from "sanitize-filename";
 
 // ============================================================================
 // Output Types
@@ -28,6 +30,39 @@ export interface ConversationMessage
 export interface GetConversationResult {
   count: number;
   results: ConversationMessage[];
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+async function convertHtmlToPdf(message: Message): Promise<Buffer> {
+  let result = message.body?.content ?? "";
+  for (const att of message.attachments ?? []) {
+    const fileAtt = att as any;
+    if (
+      fileAtt["@odata.type"] === "#microsoft.graph.fileAttachment" &&
+      fileAtt.contentBytes &&
+      fileAtt.contentId
+    ) {
+      const dataUrl = `data:${att.contentType || "image/png"};base64,${
+        fileAtt.contentBytes
+      }`;
+      result = result.replace(
+        new RegExp(`cid:${fileAtt.contentId}`, "g"),
+        dataUrl
+      );
+    }
+  }
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.setContent(result, { waitUntil: "networkidle0" });
+  const pdf = await page.pdf({
+    format: "A4",
+    printBackground: true,
+  });
+  await browser.close();
+  return Buffer.from(pdf);
 }
 
 // ============================================================================
@@ -57,39 +92,53 @@ export const getConversation = {
       messages.map(async (message) => {
         const uploadedAttachments: UploadedAttachment[] = [];
 
-        // Process file attachments
+        // Convert HTML emails to PDF and upload to OneDrive
+        if (message.body?.contentType?.includes("html")) {
+          const pdfBytes = await convertHtmlToPdf(message);
+          try {
+            const pdfMeta = {
+              name: (message.subject || message.id || "email").concat(".pdf"),
+              contentType: "application/pdf",
+              size: pdfBytes.length,
+            };
+            const driveItem = await client.uploadFile(
+              pdfMeta.name,
+              pdfBytes,
+              `attachments/${sanitize(args.conversationId)}`
+            );
+            uploadedAttachments.push({
+              attachment: pdfMeta,
+              driveItem,
+            });
+          } catch (error) {
+            console.error("Failed to upload PDF attachment:", error);
+            uploadedAttachments.push({
+              attachment: {},
+              driveItem: {} as DriveItem,
+              error: "Failed to upload to OneDrive",
+            });
+          }
+        }
+
+        // Upload file attachments
         for (const attachment of message.attachments ?? []) {
-          // Check if this is a FileAttachment with contentBytes
+          const fileAtt = attachment as any;
           if (
-            (attachment as any)["@odata.type"] ===
-              "#microsoft.graph.fileAttachment" &&
-            "contentBytes" in attachment
+            fileAtt["@odata.type"] === "#microsoft.graph.fileAttachment" &&
+            fileAtt.contentBytes
           ) {
             try {
-              // Decode base64 content
-              const attachmentBytes = Buffer.from(
-                (attachment as any).contentBytes,
-                "base64"
-              );
-
-              // Upload to OneDrive in folder: attachments/{conversationId-prefix}
-              const conversationPrefix = args.conversationId.substring(0, 8);
-              const uploadedFile = await client.uploadFile(
+              const driveItem = await client.uploadFile(
                 attachment.name || "attachment",
-                attachmentBytes,
-                `attachments/${conversationPrefix}`
+                Buffer.from(fileAtt.contentBytes, "base64"),
+                `attachments/${sanitize(args.conversationId)}`
               );
-
-              // Strip contentBytes from attachment to avoid sending large data in response
-              const { contentBytes, ...attachmentMetadata } = attachment as any;
-              uploadedAttachments.push({
-                attachment: attachmentMetadata,
-                driveItem: uploadedFile,
-              });
+              const { contentBytes, ...metadata } = fileAtt;
+              uploadedAttachments.push({ attachment: metadata, driveItem });
             } catch (error) {
-              const { contentBytes, ...attachmentMetadata } = attachment as any;
+              const { contentBytes, ...metadata } = fileAtt;
               uploadedAttachments.push({
-                attachment: attachmentMetadata,
+                attachment: metadata,
                 driveItem: {} as DriveItem,
                 error: "Failed to upload to OneDrive",
               });
@@ -97,7 +146,7 @@ export const getConversation = {
           }
         }
 
-        const conversationMessage: ConversationMessage = {
+        return {
           id: message.id,
           subject: message.subject,
           from: message.from,
@@ -106,8 +155,6 @@ export const getConversation = {
           body: message.body,
           uploadedAttachments,
         };
-
-        return conversationMessage;
       })
     );
 

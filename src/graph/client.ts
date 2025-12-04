@@ -8,6 +8,7 @@ import type {
   SearchHit,
 } from "@microsoft/microsoft-graph-types";
 import "isomorphic-fetch";
+import sanitize from "sanitize-filename";
 
 // ============================================================================
 // Types
@@ -110,9 +111,10 @@ export class GraphClient {
     content: Buffer,
     folderPath?: string
   ): Promise<DriveItem> {
+    const sanitizedFileName = sanitize(fileName);
     const uploadPath = folderPath
-      ? `/me/drive/root:/${folderPath}/${fileName}:/content`
-      : `/me/drive/root:/${fileName}:/content`;
+      ? `/me/drive/root:/${folderPath}/${sanitizedFileName}:/content`
+      : `/me/drive/root:/${sanitizedFileName}:/content`;
 
     return this.client.api(uploadPath).put(content);
   }

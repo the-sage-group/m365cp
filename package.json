@@ -29,6 +29,8 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "isomorphic-fetch": "^3.0.0",
+    "puppeteer": "^24.32.0",
+    "sanitize-filename": "^1.6.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
