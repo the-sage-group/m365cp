@@ -10,7 +10,9 @@
   },
   "typesVersions": {
     "*": {
-      "tools": ["dist/tools/index.d.ts"]
+      "tools": [
+        "dist/tools/index.d.ts"
+      ]
     }
   },
   "bin": {
@@ -20,7 +22,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts"
+    "dev": "DEBUG=m365:* tsx watch src/index.ts"
   },
   "keywords": [
     "mcp",
@@ -35,6 +37,8 @@
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@microsoft/microsoft-graph-types": "^2.43.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "@types/debug": "^4.1.12",
+    "debug": "^4.4.3",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "isomorphic-fetch": "^3.0.0",

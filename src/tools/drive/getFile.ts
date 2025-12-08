@@ -1,7 +1,10 @@
 import { z } from "zod";
+import createDebug from "debug";
 import { GraphClient } from "../../graph/client.js";
 import type { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { DriveItem } from "@microsoft/microsoft-graph-types";
+
+const debug = createDebug("m365:get_file");
 
 // ============================================================================
 // Output Types
@@ -24,10 +27,12 @@ export const getFile = {
     }),
   },
   handler: (async (args, extra) => {
+    debug("request: %O", args);
     const client = new GraphClient(extra.authInfo!.token!);
     const driveItem = await client.getFileMetadata(args.itemId);
 
     const result: GetFileResult = driveItem;
+    debug("response: %O", result);
 
     return {
       content: [
