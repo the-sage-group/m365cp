@@ -22,7 +22,7 @@ export interface UploadedAttachment {
 export interface ConversationMessage
   extends Pick<
     Message,
-    "id" | "subject" | "from" | "receivedDateTime" | "bodyPreview" | "body"
+    "id" | "subject" | "from" | "receivedDateTime" | "bodyPreview"
   > {
   uploadedAttachments: UploadedAttachment[];
 }
@@ -97,7 +97,7 @@ export const getConversation = {
           const pdfBytes = await convertHtmlToPdf(message);
           try {
             const pdfMeta = {
-              name: (message.subject || message.id || "email").concat(".pdf"),
+              name: `${message.subject || "email"}-${message.id}.pdf`,
               contentType: "application/pdf",
               size: pdfBytes.length,
             };
@@ -152,7 +152,6 @@ export const getConversation = {
           from: message.from,
           receivedDateTime: message.receivedDateTime,
           bodyPreview: message.bodyPreview,
-          body: message.body,
           uploadedAttachments,
         };
       })
