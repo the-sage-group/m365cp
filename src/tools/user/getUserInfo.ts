@@ -1,6 +1,7 @@
 import { GraphClient } from "../../graph/client.js";
 import type { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { User } from "@microsoft/microsoft-graph-types";
+import { toolNames } from "../names.js";
 
 // ============================================================================
 // Output Types
@@ -13,7 +14,7 @@ export type GetUserInfoResult = User;
 // ============================================================================
 
 export const getUserInfo = {
-  name: "get_user_info",
+  name: toolNames.getUserInfo,
   schema: {
     title: "Get User Info",
     description: "Get information about the authenticated user",

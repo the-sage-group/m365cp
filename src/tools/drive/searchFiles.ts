@@ -3,6 +3,7 @@ import createDebug from "debug";
 import { GraphClient } from "../../graph/client.js";
 import type { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { DriveItem } from "@microsoft/microsoft-graph-types";
+import { toolNames } from "../names.js";
 
 const debug = createDebug("m365:search_files");
 
@@ -17,7 +18,7 @@ export type SearchFilesResult = DriveItem[];
 // ============================================================================
 
 export const searchFiles = {
-  name: "search_files",
+  name: toolNames.searchFiles,
   schema: {
     title: "Search Files",
     description: "Search for files in OneDrive by name, content, or metadata.",

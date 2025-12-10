@@ -3,6 +3,7 @@ import createDebug from "debug";
 import { GraphClient } from "../../graph/client.js";
 import type { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { DriveItem } from "@microsoft/microsoft-graph-types";
+import { toolNames } from "../names.js";
 
 const debug = createDebug("m365:get_file");
 
@@ -17,7 +18,7 @@ export type GetFileResult = DriveItem;
 // ============================================================================
 
 export const getFile = {
-  name: "get_file",
+  name: toolNames.getFile,
   schema: {
     title: "Get File",
     description:

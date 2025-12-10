@@ -6,12 +6,16 @@
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js",
-    "./tools": "./dist/tools/index.js"
+    "./tools": "./dist/tools/index.js",
+    "./tools/names": "./dist/tools/names.js"
   },
   "typesVersions": {
     "*": {
       "tools": [
         "dist/tools/index.d.ts"
+      ],
+      "tools/names": [
+        "dist/tools/names.d.ts"
       ]
     }
   },

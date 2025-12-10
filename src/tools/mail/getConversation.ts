@@ -8,6 +8,7 @@ import type {
 } from "@microsoft/microsoft-graph-types";
 import puppeteer from "puppeteer";
 import sanitize from "sanitize-filename";
+import { toolNames } from "../names.js";
 
 // ============================================================================
 // Output Types
@@ -70,7 +71,7 @@ async function convertHtmlToPdf(message: Message): Promise<Buffer> {
 // ============================================================================
 
 export const getConversation = {
-  name: "get_conversation",
+  name: toolNames.getConversation,
   schema: {
     title: "Get Conversation",
     description:

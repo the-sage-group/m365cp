@@ -2,6 +2,7 @@ import { z } from "zod";
 import { GraphClient } from "../../graph/client.js";
 import type { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { DriveItem } from "@microsoft/microsoft-graph-types";
+import { toolNames } from "../names.js";
 
 // ============================================================================
 // Output Types
@@ -14,7 +15,7 @@ export type MoveFileResult = DriveItem;
 // ============================================================================
 
 export const moveFile = {
-  name: "move_file",
+  name: toolNames.moveFile,
   schema: {
     title: "Move File",
     description:

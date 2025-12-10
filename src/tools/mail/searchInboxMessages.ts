@@ -2,6 +2,7 @@ import { z } from "zod";
 import { GraphClient } from "../../graph/client.js";
 import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SearchHit } from "@microsoft/microsoft-graph-types";
+import { toolNames } from "../names.js";
 
 // ============================================================================
 // Output Types
@@ -17,7 +18,7 @@ export interface SearchInboxMessagesResult {
 // ============================================================================
 
 export const searchInboxMessages = {
-  name: "search_inbox_messages",
+  name: toolNames.searchInboxMessages,
   schema: {
     title: "Search Inbox Messages",
     description:

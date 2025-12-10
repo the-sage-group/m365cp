@@ -16,6 +16,9 @@ export {
   getConversation,
 };
 
+// Export tool names (browser-safe)
+export { toolNames } from "./names.js";
+
 // Re-export types for external consumers (e.g., mecha)
 export type { GetUserInfoResult } from "./user/getUserInfo.js";
 export type { GetFileResult } from "./drive/getFile.js";
