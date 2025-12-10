@@ -11,7 +11,14 @@ const debug = createDebug("m365:get_file");
 // Output Types
 // ============================================================================
 
-export type GetFileResult = DriveItem;
+export interface GetFileResult {
+  id: string;
+  name?: string | null;
+  webUrl?: string | null;
+  downloadUrl?: string | null;
+  size?: number | null;
+  mimeType?: string | null;
+}
 
 // ============================================================================
 // Tool Definition
@@ -32,7 +39,14 @@ export const getFile = {
     const client = new GraphClient(extra.authInfo!.token!);
     const driveItem = await client.getFileMetadata(args.itemId);
 
-    const result: GetFileResult = driveItem;
+    const result: GetFileResult = {
+      id: driveItem.id!,
+      name: driveItem.name,
+      webUrl: driveItem.webUrl,
+      downloadUrl: (driveItem as any)["@microsoft.graph.downloadUrl"],
+      size: driveItem.size,
+      mimeType: driveItem.file?.mimeType,
+    };
     debug("response: %O", result);
 
     return {

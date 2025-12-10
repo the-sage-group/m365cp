@@ -14,17 +14,33 @@ import { toolNames } from "../names.js";
 // Output Types
 // ============================================================================
 
+export interface DriveItemResult {
+  id: string;
+  name?: string | null;
+  webUrl?: string | null;
+  downloadUrl?: string | null;
+  size?: number | null;
+}
+
+export interface AttachmentResult {
+  id?: string | null;
+  name?: string | null;
+  contentType?: string | null;
+  size?: number | null;
+}
+
 export interface UploadedAttachment {
-  attachment: Attachment;
-  driveItem: DriveItem;
+  attachment: AttachmentResult;
+  driveItem: DriveItemResult;
   error?: string;
 }
 
-export interface ConversationMessage
-  extends Pick<
-    Message,
-    "id" | "subject" | "from" | "receivedDateTime" | "bodyPreview"
-  > {
+export interface ConversationMessage {
+  id?: string | null;
+  subject?: string | null;
+  from?: string | null;
+  receivedDateTime?: string | null;
+  bodyPreview?: string | null;
   uploadedAttachments: UploadedAttachment[];
 }
 
@@ -93,29 +109,38 @@ export const getConversation = {
       messages.map(async (message) => {
         const uploadedAttachments: UploadedAttachment[] = [];
 
+        // Helper to extract minimal driveItem fields
+        const toDriveItemResult = (item: DriveItem): DriveItemResult => ({
+          id: item.id!,
+          name: item.name,
+          webUrl: item.webUrl,
+          downloadUrl: (item as any)["@microsoft.graph.downloadUrl"],
+          size: item.size,
+        });
+
         // Convert HTML emails to PDF and upload to OneDrive
         if (message.body?.contentType?.includes("html")) {
           const pdfBytes = await convertHtmlToPdf(message);
           try {
-            const pdfMeta = {
+            const pdfMeta: AttachmentResult = {
               name: `${message.subject || "email"}-${message.id}.pdf`,
               contentType: "application/pdf",
               size: pdfBytes.length,
             };
             const driveItem = await client.uploadFile(
-              pdfMeta.name,
+              pdfMeta.name!,
               pdfBytes,
               `attachments/${sanitize(args.conversationId)}`
             );
             uploadedAttachments.push({
               attachment: pdfMeta,
-              driveItem,
+              driveItem: toDriveItemResult(driveItem),
             });
           } catch (error) {
             console.error("Failed to upload PDF attachment:", error);
             uploadedAttachments.push({
               attachment: {},
-              driveItem: {} as DriveItem,
+              driveItem: { id: "" },
               error: "Failed to upload to OneDrive",
             });
           }
@@ -134,13 +159,24 @@ export const getConversation = {
                 Buffer.from(fileAtt.contentBytes, "base64"),
                 `attachments/${sanitize(args.conversationId)}`
               );
-              const { contentBytes, ...metadata } = fileAtt;
-              uploadedAttachments.push({ attachment: metadata, driveItem });
-            } catch (error) {
-              const { contentBytes, ...metadata } = fileAtt;
               uploadedAttachments.push({
-                attachment: metadata,
-                driveItem: {} as DriveItem,
+                attachment: {
+                  id: attachment.id,
+                  name: attachment.name,
+                  contentType: attachment.contentType,
+                  size: attachment.size,
+                },
+                driveItem: toDriveItemResult(driveItem),
+              });
+            } catch (error) {
+              uploadedAttachments.push({
+                attachment: {
+                  id: attachment.id,
+                  name: attachment.name,
+                  contentType: attachment.contentType,
+                  size: attachment.size,
+                },
+                driveItem: { id: "" },
                 error: "Failed to upload to OneDrive",
               });
             }
@@ -150,7 +186,7 @@ export const getConversation = {
         return {
           id: message.id,
           subject: message.subject,
-          from: message.from,
+          from: message.from?.emailAddress?.address,
           receivedDateTime: message.receivedDateTime,
           bodyPreview: message.bodyPreview,
           uploadedAttachments,

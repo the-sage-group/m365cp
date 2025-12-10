@@ -8,7 +8,13 @@ import { toolNames } from "../names.js";
 // Output Types
 // ============================================================================
 
-export type MoveFileResult = DriveItem;
+export interface MoveFileResult {
+  id: string;
+  name?: string | null;
+  webUrl?: string | null;
+  downloadUrl?: string | null;
+  size?: number | null;
+}
 
 // ============================================================================
 // Tool Definition
@@ -52,7 +58,13 @@ export const moveFile = {
       throw error;
     }
 
-    const result: MoveFileResult = movedItem;
+    const result: MoveFileResult = {
+      id: movedItem.id!,
+      name: movedItem.name,
+      webUrl: movedItem.webUrl,
+      downloadUrl: (movedItem as any)["@microsoft.graph.downloadUrl"],
+      size: movedItem.size,
+    };
 
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

@@ -11,7 +11,16 @@ const debug = createDebug("m365:search_files");
 // Output Types
 // ============================================================================
 
-export type SearchFilesResult = DriveItem[];
+export interface FileResult {
+  id: string;
+  name?: string | null;
+  webUrl?: string | null;
+  downloadUrl?: string | null;
+  size?: number | null;
+  mimeType?: string | null;
+}
+
+export type SearchFilesResult = FileResult[];
 
 // ============================================================================
 // Tool Definition
@@ -32,7 +41,14 @@ export const searchFiles = {
     const client = new GraphClient(extra.authInfo!.token!);
     const items = await client.searchFiles(args.query, args.top);
 
-    const result: SearchFilesResult = items;
+    const result: SearchFilesResult = items.map((item) => ({
+      id: item.id!,
+      name: item.name,
+      webUrl: item.webUrl,
+      downloadUrl: (item as any)["@microsoft.graph.downloadUrl"],
+      size: item.size,
+      mimeType: item.file?.mimeType,
+    }));
     debug("response: %d files", result.length);
 
     return {

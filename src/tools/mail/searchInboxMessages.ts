@@ -1,16 +1,26 @@
 import { z } from "zod";
 import { GraphClient } from "../../graph/client.js";
 import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { SearchHit } from "@microsoft/microsoft-graph-types";
+import type { SearchHit, Message } from "@microsoft/microsoft-graph-types";
 import { toolNames } from "../names.js";
 
 // ============================================================================
 // Output Types
 // ============================================================================
 
+export interface MessageResult {
+  id: string;
+  conversationId?: string | null;
+  subject?: string | null;
+  from?: string | null;
+  receivedDateTime?: string | null;
+  bodyPreview?: string | null;
+  webLink?: string | null;
+}
+
 export interface SearchInboxMessagesResult {
   count: number;
-  results: SearchHit[];
+  results: MessageResult[];
 }
 
 // ============================================================================
@@ -40,9 +50,22 @@ export const searchInboxMessages = {
     const client = new GraphClient(extra.authInfo!.token!);
     const searchHits = await client.searchMessages(args.query);
 
+    const results: MessageResult[] = searchHits.map((hit) => {
+      const message = hit.resource as Message;
+      return {
+        id: message.id!,
+        conversationId: message.conversationId ?? undefined,
+        subject: message.subject ?? undefined,
+        from: message.from?.emailAddress?.address ?? undefined,
+        receivedDateTime: message.receivedDateTime ?? undefined,
+        bodyPreview: message.bodyPreview ?? undefined,
+        webLink: message.webLink ?? undefined,
+      };
+    });
+
     const result: SearchInboxMessagesResult = {
-      count: searchHits.length,
-      results: searchHits,
+      count: results.length,
+      results,
     };
 
     return {
