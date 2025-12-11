@@ -96,7 +96,8 @@ export class GraphClient {
 
   async searchFiles(query: string, top = 20): Promise<DriveItem[]> {
     const response = await this.client
-      .api(`/me/drive/root/search(q='${query}')`)
+      .api("/me/drive/root/search")
+      .query({ q: query })
       .top(top)
       .get();
     return response.value || [];
@@ -119,29 +120,21 @@ export class GraphClient {
     return this.client.api(uploadPath).put(content);
   }
 
-  async moveFile(
+  async moveFileById(
     itemId: string,
-    destinationFolderPath: string,
+    destinationFolderId: string,
     newName?: string
   ): Promise<DriveItem> {
-    // Get the destination folder by path
-    const destinationFolder = await this.client
-      .api(`/me/drive/root:/${destinationFolderPath}`)
-      .get();
-
-    // Build the update payload
     const updatePayload: any = {
       parentReference: {
-        id: destinationFolder.id,
+        id: destinationFolderId,
       },
     };
 
-    // If a new name is provided, include it in the update
     if (newName) {
       updatePayload.name = sanitize(newName);
     }
 
-    // Move the file by updating its parentReference (and optionally name)
     return this.client.api(`/me/drive/items/${itemId}`).patch(updatePayload);
   }
 
