@@ -5,6 +5,7 @@ import { searchFiles } from "./drive/searchFiles.js";
 import { moveFile } from "./drive/moveFile.js";
 import { searchInboxMessages } from "./mail/searchInboxMessages.js";
 import { getConversation } from "./mail/getConversation.js";
+import { createDraftEmail } from "./mail/createDraftEmail.js";
 
 // Export individual tools
 export {
@@ -14,6 +15,7 @@ export {
   moveFile,
   searchInboxMessages,
   getConversation,
+  createDraftEmail,
 };
 
 // Export tool names (browser-safe)
@@ -30,3 +32,4 @@ export type {
   ConversationMessage,
   UploadedAttachment,
 } from "./mail/getConversation.js";
+export type { CreateDraftEmailResult } from "./mail/createDraftEmail.js";

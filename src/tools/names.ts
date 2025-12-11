@@ -5,4 +5,5 @@ export const toolNames = {
   searchInboxMessages: "search_inbox_messages",
   getConversation: "get_conversation",
   getUserInfo: "get_user_info",
+  createDraftEmail: "create_draft_email",
 } as const;

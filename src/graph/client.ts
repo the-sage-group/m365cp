@@ -6,6 +6,11 @@ import type {
   User,
   Attachment,
   SearchHit,
+  Recipient,
+  FileAttachment,
+  ItemBody,
+  BodyType,
+  Importance,
 } from "@microsoft/microsoft-graph-types";
 import "isomorphic-fetch";
 import sanitize from "sanitize-filename";
@@ -186,5 +191,52 @@ export class GraphClient {
       console.error("Error getting conversation messages:", error);
       throw error;
     }
+  }
+
+  /**
+   * Creates a draft email message in the user's Drafts folder.
+   * If drive item IDs are provided, files are fetched from OneDrive and attached.
+   * Maximum attachment size is 3MB per attachment for direct upload.
+   *
+   * @param message - The message properties (subject, body, recipients, etc.)
+   * @param driveItemIds - Optional array of OneDrive item IDs to attach
+   * @returns The created message with attachments
+   */
+  async createDraftEmail(
+    message: Message,
+    driveItemIds?: string[]
+  ): Promise<Message> {
+    // Step 1: Create the draft message
+    const createdMessage: Message = await this.client
+      .api("/me/messages")
+      .post(message);
+
+    // Step 2: Fetch and attach files from OneDrive if drive item IDs provided
+    if (driveItemIds && driveItemIds.length > 0 && createdMessage.id) {
+      for (const itemId of driveItemIds) {
+        const fileContent = await this.getFileBytes(itemId);
+
+        const attachment: FileAttachment = {
+          name: fileContent.name,
+          contentType: fileContent.mimeType,
+          contentBytes: fileContent.base64,
+        };
+
+        await this.client
+          .api(`/me/messages/${createdMessage.id}/attachments`)
+          .post({
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            ...attachment,
+          });
+      }
+
+      // Fetch the updated message with attachments
+      return this.client
+        .api(`/me/messages/${createdMessage.id}`)
+        .expand("attachments")
+        .get();
+    }
+
+    return createdMessage;
   }
 }
