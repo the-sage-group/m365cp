@@ -31,5 +31,6 @@ export type {
   GetConversationResult,
   ConversationMessage,
   UploadedAttachment,
+  DriveItemResult,
 } from "./mail/getConversation.js";
 export type { CreateDraftEmailResult } from "./mail/createDraftEmail.js";

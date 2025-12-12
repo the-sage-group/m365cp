@@ -1,8 +1,11 @@
 import { z } from "zod";
+import createDebug from "debug";
 import { GraphClient } from "../../graph/client.js";
 import { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Message, ItemBody } from "@microsoft/microsoft-graph-types";
 import { toolNames } from "../names.js";
+
+const debug = createDebug("m365:create_draft_email");
 
 // ============================================================================
 // Input Schemas
@@ -73,6 +76,7 @@ export const createDraftEmail = {
     }),
   },
   handler: (async (args, extra) => {
+    debug("input %o", args);
     const client = new GraphClient(extra.authInfo!.token!);
 
     // Build recipients
@@ -113,6 +117,8 @@ export const createDraftEmail = {
       hasAttachments: createdMessage.hasAttachments ?? false,
       attachmentCount: createdMessage.attachments?.length ?? 0,
     };
+
+    debug("output %o", result);
 
     return {
       content: [

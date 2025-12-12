@@ -20,6 +20,7 @@ export interface DriveItemResult {
   webUrl?: string | null;
   downloadUrl?: string | null;
   size?: number | null;
+  mimeType?: string | null;
 }
 
 export interface AttachmentResult {
@@ -116,6 +117,7 @@ export const getConversation = {
           webUrl: item.webUrl,
           downloadUrl: (item as any)["@microsoft.graph.downloadUrl"],
           size: item.size,
+          mimeType: item.file?.mimeType,
         });
 
         // Convert HTML emails to PDF and upload to OneDrive
