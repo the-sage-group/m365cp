@@ -76,7 +76,13 @@ export const createDraftEmail = {
     }),
   },
   handler: (async (args, extra) => {
-    debug("input %o", args);
+    const bodySize = args.body?.length ?? 0;
+    debug("input subject=%s body_size=%d attachments=%d",
+      args.subject,
+      bodySize,
+      args.attachmentDriveItemIds?.length ?? 0
+    );
+
     const client = new GraphClient(extra.authInfo!.token!);
 
     // Build recipients
@@ -104,30 +110,36 @@ export const createDraftEmail = {
     };
 
     // Create the draft with attachments
-    const createdMessage = await client.createDraftEmail(
-      message,
-      args.attachmentDriveItemIds
-    );
+    try {
+      const createdMessage = await client.createDraftEmail(
+        message,
+        args.attachmentDriveItemIds
+      );
 
-    const result: CreateDraftEmailResult = {
-      id: createdMessage.id!,
-      webLink: createdMessage.webLink,
-      subject: createdMessage.subject,
-      isDraft: createdMessage.isDraft ?? true,
-      hasAttachments: createdMessage.hasAttachments ?? false,
-      attachmentCount: createdMessage.attachments?.length ?? 0,
-    };
+      const result: CreateDraftEmailResult = {
+        id: createdMessage.id!,
+        webLink: createdMessage.webLink,
+        subject: createdMessage.subject,
+        isDraft: createdMessage.isDraft ?? true,
+        hasAttachments: createdMessage.hasAttachments ?? false,
+        attachmentCount: createdMessage.attachments?.length ?? 0,
+      };
 
-    debug("output %o", result);
+      debug("output %o", result);
 
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
-    };
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      debug("error body_size=%d error=%s", bodySize, errorMsg);
+      throw error;
+    }
   }) satisfies ToolCallback<{
     subject: z.ZodString;
     body: z.ZodString;
