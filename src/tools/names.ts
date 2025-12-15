@@ -1,5 +1,4 @@
 export const toolNames = {
-  getFile: "get_file",
   searchFiles: "search_files",
   moveFile: "move_file",
   searchInboxMessages: "search_inbox_messages",

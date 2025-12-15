@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
 import "dotenv/config";
+import createDebug from "debug";
 import express from "express";
+
+const debug = createDebug("m365:server");
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
@@ -41,21 +44,20 @@ app.post(
   requireBearerAuth({ verifier: tokenVerifier }),
   async (req, res) => {
     try {
-      // Create a new transport for each request to prevent request ID collisions
-      // Different clients may use the same JSON-RPC request IDs
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,
       });
 
-      res.on("close", () => {
-        transport.close();
-      });
+      res.on("close", () => transport.close());
 
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);
     } catch (error) {
-      console.error("Error handling MCP request:", error);
+      debug("error %O", error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Internal server error" });
+      }
     }
   }
 );
